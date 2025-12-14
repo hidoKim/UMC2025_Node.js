@@ -10,4 +10,59 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - TODO
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # 접속 별명 설정
+          cat >>~/.ssh/config <<END
+          Host UMC9thweek10
+            HostName $EC2_HOST
+            User $EC2_USER
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          END
+        env:
+          EC2_USER: ubuntu
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Copy Workspace
+        run: |
+          ssh UMC9thweek10 'sudo mkdir -p /opt/app'
+          ssh UMC9thweek10 'sudo chown ubuntu:ubuntu /opt/app'
+          scp -r ./[!.]* UMC9thweek10:/opt/app
+
+      - name: Install dependencies
+        run: |
+          ssh UMC9thweek10 'npm install --prefix /opt/app/'
+
+      - name: Copy systemd service file
+        run: |
+          ssh UMC9thweek10 '
+            echo "[Unit]
+            Description=UMC 9th Project
+            After=network.target
+
+            [Service]
+            User=ubuntu
+            ExecStart=/usr/bin/npm run dev --prefix /opt/app/
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target" | sudo tee /etc/systemd/system/app.service
+          '
+
+      - name: Enable systemd service
+        run: |
+          ssh UMC9thweek10 'sudo systemctl daemon-reload'
+          ssh UMC9thweek10 'sudo systemctl enable app'
+
+      - name: Restart systemd service
+        run: |
+          ssh UMC9thweek10 'sudo systemctl restart app'
