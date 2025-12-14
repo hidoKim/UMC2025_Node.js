@@ -6,7 +6,7 @@ import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
 
 dotenv.config();
 const secret = process.env.JWT_SECRET; // .env의 비밀 키
-
+const BASE_URL = process.env.BASE_URL;
 export const generateAccessToken = (user) => {
   return jwt.sign({ id: user.id, email: user.email }, secret, {
     expiresIn: "1h",
@@ -52,7 +52,7 @@ export const googleStrategy = new GoogleStrategy(
   {
     clientID: process.env.PASSPORT_GOOGLE_CLIENT_ID,
     clientSecret: process.env.PASSPORT_GOOGLE_CLIENT_SECRET,
-    callbackURL: "/oauth2/callback/google",
+    callbackURL: `${BASE_URL}/oauth2/callback/google`,
     scope: ["email", "profile"],
   },
 
