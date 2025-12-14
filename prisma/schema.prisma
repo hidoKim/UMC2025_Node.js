@@ -1,0 +1,208 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  owner
+  admin
+}
+
+
+model Member {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique @db.VarChar(300)
+  nick_name  String?        @db.VarChar(20)      @map("nick_name")
+  role       Role          @default(user)
+  name      String    @db.VarChar(100)
+  gender    String    @db.VarChar(15)
+  birth     DateTime  @db.Date
+  address   String    @db.VarChar(255)
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  phones    Phone[]
+  preferences MemberPrefFood[]
+  memberMissions MemberMission[]
+
+  @@map("member")
+}
+
+model Phone {
+  id         Int     @id @default(autoincrement())
+  memberId   Int     @map("member_id")
+  phoneNumber String @map("phone_number") @db.VarChar(15)
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  member     Member @relation(fields: [memberId], references: [id])
+
+  @@map("phone")
+}
+
+model FoodCategory {
+  id              Int              @id @default(autoincrement())
+  name            String           @db.VarChar(100)
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  preferences  MemberPrefFood[]
+
+  @@map("food_category")
+}
+
+model MemberPrefFood {
+  id              Int          @id @default(autoincrement())
+  foodCategoryId  Int          @map("food_category_id")
+  memberId        Int          @map("member_id")
+
+  member          Member        @relation(fields: [memberId], references: [id])
+  foodCategory    FoodCategory  @relation(fields: [foodCategoryId], references: [id])
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  @@index([foodCategoryId], map: "food_category_id")
+  @@index([memberId], map: "member_id")
+  @@map("member_pref_food")
+}
+
+
+model Region {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(30)
+  stores     Store[]
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  is_deleted Boolean  @default(false)
+  
+  @@map("region")
+}
+
+
+model Store {
+  id         Int      @id @default(autoincrement())
+  region_id  Int
+  name       String   @db.VarChar(40)
+  address    String   @db.VarChar(100)
+  food_type  String   @db.VarChar(20)
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  region     Region   @relation(fields: [region_id], references: [id])
+  missions   Mission[]
+  images     StoreImages[]
+  reviews    Review[]
+
+  @@map("store")
+}
+
+model StoreImages {
+  id         Int      @id @default(autoincrement())
+  store_id   Int
+  src        String   @db.VarChar(200)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  store      Store    @relation(fields: [store_id], references: [id])
+
+  @@map("store_images")
+}
+
+model Mission {
+  id         Int      @id @default(autoincrement())
+  store_id   Int
+  name       String   @db.VarChar(100)
+  description String  @db.Text
+  reward     Int
+  criteria   String   @db.VarChar(100)
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  store      Store    @relation(fields: [store_id], references: [id])
+  memberMissions MemberMission[]
+
+  @@map("mission")
+}
+
+enum MemberMissionStatus {
+  assigned
+  in_progress
+  completed
+  failed
+}
+
+model MemberMission {
+  id         Int       @id @default(autoincrement())
+  memberId   Int       @map("member_id")
+  missionId  Int       @map("mission_id")
+  status       MemberMissionStatus @default(assigned)
+  started_at   DateTime?
+  completed_at DateTime?
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  member     Member    @relation(fields: [memberId], references: [id])
+  mission    Mission   @relation(fields: [missionId], references: [id])
+  reviews    Review[]
+
+  @@map("member_mission")
+}
+
+model Review {
+  id                Int         @id @default(autoincrement())
+  member_mission_id Int
+  parent_review_id    Int?
+  store_id  Int
+  store     Store      @relation(fields: [store_id], references: [id])
+
+  content           String
+  rating            Int
+
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
+  is_deleted        Boolean     @default(false)
+
+  memberMission       MemberMission @relation(fields: [member_mission_id], references: [id])
+  parentReview        Review?       @relation("ReviewToReply", fields: [parent_review_id], references: [id])
+  replies             Review[]      @relation("ReviewToReply")
+
+  reviewImages        ReviewImages[]
+
+  @@map("review")
+}
+
+model ReviewImages {
+  id          Int      @id @default(autoincrement())
+  review_id   Int
+  src         String   @db.VarChar(200)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  review      Review   @relation(fields: [review_id], references: [id])
+  @@map("review_images")
+}
